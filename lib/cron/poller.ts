@@ -6,8 +6,9 @@ import { eq, and, lt, sql } from "drizzle-orm";
 
 let isPolling = false;
 
-/** Delay between sequential fetches (Camoufox opens a full browser each time). */
-const FETCH_DELAY_MS = 2000;
+/** Delay between sequential fetches (Camoufox opens a full browser each time).
+ *  5s to avoid SNCF rate-limiting / 403 blocks. */
+const FETCH_DELAY_MS = 5000;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
