@@ -6,7 +6,7 @@ Usage:
   python scripts/fetch_sncf.py <origin> <destination> <date_YYYY-MM-DD>
 
 Output: JSON to stdout
-  {"source":"camoufox","trains":[{"trainNumber":"2501","trainType":"INOUI","departureTime":"2026-03-03T07:06","arrivalTime":"2026-03-03T07:45","seatsAvailable":64,"origin":"PARIS EST","destination":"CHAMPAGNE-ARDENNE TGV"},...]}
+  {"source":"camoufox","trains":[...]}
 
 Exit codes:
   0 = success
@@ -18,14 +18,40 @@ import json
 import time
 import urllib.parse
 import urllib.request
+import os
 
 
-PYTHON_BIN = sys.executable
 API_BASE = (
     "https://www.maxjeune-tgvinoui.sncf/api/public/refdata/"
     "search-freeplaces-proposals"
 )
 SITE_URL = "https://www.maxjeune-tgvinoui.sncf/"
+
+# Use Tor SOCKS proxy if available (bypasses SNCF IP bans)
+TOR_PROXY = {"server": "socks5://127.0.0.1:9050"}
+
+
+def _is_tor_running() -> bool:
+    """Check if Tor SOCKS proxy is reachable."""
+    import socket
+    try:
+        s = socket.create_connection(("127.0.0.1", 9050), timeout=2)
+        s.close()
+        return True
+    except OSError:
+        return False
+
+
+def _rotate_tor_ip():
+    """Ask Tor for a new circuit (new exit IP)."""
+    try:
+        import stem.control
+        with stem.control.Controller.from_port(port=9051) as ctrl:
+            ctrl.authenticate()
+            ctrl.signal(stem.Signal.NEWNYM)
+        time.sleep(2)
+    except Exception:
+        pass
 
 
 def fetch_with_camoufox(origin: str, destination: str, date: str) -> list:
@@ -34,7 +60,13 @@ def fetch_with_camoufox(origin: str, destination: str, date: str) -> list:
 
     url = f"{API_BASE}?origin={origin}&destination={destination}&departureDateTime={date}T01:00:00.000Z"
 
-    with Camoufox(headless=True, humanize=False) as browser:
+    use_tor = _is_tor_running()
+    cfox_kwargs = {"headless": True, "humanize": False}
+    if use_tor:
+        cfox_kwargs["proxy"] = TOR_PROXY
+        cfox_kwargs["geoip"] = True
+
+    with Camoufox(**cfox_kwargs) as browser:
         page = browser.new_page()
         page.goto(SITE_URL, timeout=25000)
         time.sleep(2)
@@ -104,12 +136,14 @@ def main():
     trains = None
     source = None
 
-    # Try Camoufox first
+    # Try Camoufox first (with Tor proxy if available)
     try:
         trains = fetch_with_camoufox(origin, destination, date)
         source = "camoufox"
     except Exception as e:
         print(f"[Camoufox failed: {e}] Falling back to Open Data", file=sys.stderr)
+        # Rotate Tor IP on failure so next call gets a fresh exit
+        _rotate_tor_ip()
 
     # Fallback to Open Data
     if trains is None:
