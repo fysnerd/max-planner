@@ -6,7 +6,7 @@ import { eq, asc, desc, and, gte, sql } from "drizzle-orm";
 export async function GET(req: NextRequest) {
   const routeId = req.nextUrl.searchParams.get("routeId");
   const date = req.nextUrl.searchParams.get("date"); // YYYY-MM-DD
-  const limit = parseInt(req.nextUrl.searchParams.get("limit") || "200");
+  const limit = parseInt(req.nextUrl.searchParams.get("limit") || "1000");
 
   const now = new Date().toISOString();
 
