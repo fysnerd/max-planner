@@ -4,7 +4,9 @@ import { TrainAvailability, FetchTrainsResult } from "./types";
 
 const PYTHON_BIN =
   process.env.PYTHON_BIN ||
-  "C:\\Users\\vmsan\\AppData\\Local\\Programs\\Python\\Python312\\python.exe";
+  (process.platform === "win32"
+    ? "C:\\Users\\vmsan\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
+    : "python3");
 
 const SCRIPT_PATH = path.join(process.cwd(), "scripts", "fetch_sncf.py");
 
