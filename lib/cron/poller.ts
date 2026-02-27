@@ -93,6 +93,12 @@ export async function runPoll(): Promise<void> {
           `[Poller]   source=${result.source}, ${result.trains.length} trains returned`
         );
 
+        // Skip OpenData results — only Camoufox gives real seat counts
+        if (result.source !== "camoufox") {
+          console.log(`[Poller]   skipping (only camoufox data is stored)`);
+          continue;
+        }
+
         // Filter by date (API can return adjacent days), time window, and day of week
         const allowedDays: number[] = JSON.parse(route.daysOfWeek || "[]");
         const filtered = result.trains.filter((t) => {
